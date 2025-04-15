@@ -44,6 +44,7 @@ type mvalue =
 
 and instr =
   | IMult                           (** multiplication *)
+  | IDiv                            (** divison **)
   | IAdd                            (** addition *)
   | ISub                            (** subtraction *)
   | IEqual                          (** equality *)
@@ -106,6 +107,11 @@ let mult = function
   | (MInt x) :: (MInt y) :: s -> MInt (y * x) :: s
   | _ -> error "int and int expected in mult"
 
+(** Division **)
+let div = function
+  | (MInt x) :: (MInt y) :: s -> MInt (y/x) :: s
+  | _ -> error "int and int expected in div"
+
 (** Addition *)
 let add = function
   | (MInt x) :: (MInt y) :: s -> MInt (y + x) :: s
@@ -134,6 +140,7 @@ let exec instr frms stck envs =
   match instr with
     (* Arithmetic *)
     | IMult  -> (frms, mult stck, envs)
+    | IDiv   -> (frms, div stck, envs)
     | IAdd   -> (frms, add stck, envs)
     | ISub   -> (frms, sub stck, envs)
     | IEqual -> (frms, equal stck, envs)

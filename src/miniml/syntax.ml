@@ -17,6 +17,7 @@ and expr' =
   | Bool of bool         		(* Boolean constant *)
   | Times of expr * expr 		(* Product [e1 * e2] *)
   | Plus of expr * expr  		(* Sum [e1 + e2] *)
+  | By of expr * expr       (* Integer quotient [e1/e2] *)
   | Minus of expr * expr 		(* Difference [e1 - e2] *)
   | Equal of expr * expr 		(* Integer comparison [e1 = e2] *)
   | Less of expr * expr  		(* Integer comparison [e1 < e2] *)
