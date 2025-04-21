@@ -30,6 +30,7 @@ type mvalue =
   | MInt of int                        (** Integer *)
   | MBool of bool                      (** Boolean value *)
   | MClosure of name * frame * environ (** Closure *)
+  | MExptn of Syntax.exptn
 
 (**
    There are two kinds of machine instructions.
@@ -52,6 +53,8 @@ and instr =
   | IVar of name  		    (** push value of variable *)
   | IInt of int   		    (** push integer constant *)
   | IBool of bool 		    (** push boolean constant *)
+  | IExptn of Syntax.exptn
+  | IRaise of Syntax.exptn
   | IClosure of name * name * frame (** push closure *)
   | IBranch of frame * frame        (** branch *)
   | ICall                           (** execute a closure *)
@@ -76,7 +79,10 @@ let error msg = raise (Machine_error msg)
 let string_of_mvalue = function
   | MInt k -> string_of_int k
   | MBool b -> string_of_bool b
-  | MClosure _ -> "<fun>" (** Closures cannot be reasonably displayed *)
+  | MClosure _ -> "<fun>"
+  | MExptn e-> match e with
+    | Syntax.DivisionByZero -> "Division by zero"
+    | Syntax.GenericException e -> string_of_int e 
 
 (** [lookup x envs] scans through the list of environments [envs] and
     returns the first value of variable [x] found. *)
@@ -109,7 +115,8 @@ let mult = function
 
 (** Division **)
 let div = function
-  | (MInt x) :: (MInt y) :: s -> MInt (y/x) :: s
+  | (MInt 0) :: (MInt _) :: s -> MExptn Syntax.DivisionByZero:: s
+  | (MInt x) :: (MInt y) :: s ->  MInt (y/x) :: s
   | _ -> error "int and int expected in div"
 
 (** Addition *)
@@ -138,6 +145,7 @@ let less = function
     environments. The return value is a new state. *)
 let exec instr frms stck envs =
   match instr with
+    | IRaise e-> ([], [MExptn e], [])
     (* Arithmetic *)
     | IMult  -> (frms, mult stck, envs)
     | IDiv   -> (frms, div stck, envs)
@@ -149,6 +157,7 @@ let exec instr frms stck envs =
     | IVar x  -> (frms, (lookup x envs) :: stck, envs)
     | IInt k  -> (frms, (MInt k) :: stck, envs)
     | IBool b -> (frms, (MBool b) :: stck, envs)
+    | IExptn e -> (frms, (MExptn e) :: stck, envs)
     | IClosure (f, x, frm) ->
 	(match envs with
 	     env :: _ ->

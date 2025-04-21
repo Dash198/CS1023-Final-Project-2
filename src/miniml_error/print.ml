@@ -1,4 +1,4 @@
-let ty t ppf =
+ let ty t ppf =
   let rec ty ~max_level t ppf =
     if not (Format.over_max_boxes ()) then
       match t with

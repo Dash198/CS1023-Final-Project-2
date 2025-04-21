@@ -5,6 +5,7 @@
 %token TINT
 %token TBOOL
 %token TARROW
+%token TEXPTN
 %token <Syntax.name> VAR
 %token <int> INT
 %token TRUE FALSE
@@ -14,12 +15,17 @@
 %token BY
 %token EQUAL LESS
 %token IF THEN ELSE
+%token TRY WITH
 %token FUN IS
 %token COLON
 %token LPAREN RPAREN
+%token LBRACE RBRACE
+%token DIVZERO
+%token GENEXPTN
 %token LET
 %token SEMISEMI
 %token EOF
+%token RAISE
 
 %start file
 %type <Syntax.command list> file
@@ -80,6 +86,8 @@ plain_expr:
     { If (e1, e2, e3) }
   | FUN x = VAR LPAREN f = VAR COLON t1 = ty RPAREN COLON t2 = ty IS e = expr
     { Fun (x, f, t1, t2, e) }
+  |RAISE e = exptn
+    { Raise e }
 
 app_expr: mark_position(plain_app_expr) { $1 }
 plain_app_expr:
@@ -90,6 +98,8 @@ plain_app_expr:
 
 simple_expr: mark_position(plain_simple_expr) { $1 }
 plain_simple_expr:
+  | x = exptn
+    { Exptn x }
   | x = VAR
     { Var x }
   | TRUE    
@@ -100,15 +110,29 @@ plain_simple_expr:
     { Int n }
   | LPAREN e = plain_expr RPAREN	
     { e }    
+  | LBRACE e = plain_expr RBRACE
+    { e }
+
+exptn:
+  | DIVZERO
+    { DivisionByZero }
+  | GENEXPTN e = INT
+    { GenericException e }
+  | GENEXPTN MINUS e = INT
+    { GenericException (-e) }
 
 ty:
   | TBOOL
     { TBool }
   | TINT
     { TInt }
+  | TEXPTN
+    { TExptn }
   | t1 = ty TARROW t2 = ty
     { TArrow (t1, t2) }
   | LPAREN t = ty RPAREN
+    { t }
+  | LBRACE t = ty RBRACE
     { t }
 
 mark_position(X):
@@ -116,4 +140,3 @@ mark_position(X):
   { Zoo.locate ~loc:(Zoo.make_location $startpos $endpos) x }
 
 %%
-

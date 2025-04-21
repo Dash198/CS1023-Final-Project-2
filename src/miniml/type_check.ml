@@ -25,12 +25,14 @@ and type_of ctx {Zoo.data=e; loc} =
 	  Not_found -> typing_error ~loc "unknown variable %s" x)
     | Int _ -> TInt
     | Bool _ -> TBool
+    | Exptn _ -> TExptn
     | Times (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TInt
     | By (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2; TInt
     | Plus (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TInt
     | Minus (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TInt
     | Equal (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TBool
     | Less (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TBool
+    | Raise _ -> TExptn
     | If (e1, e2, e3) ->
       check ctx TBool e1 ;
       let ty = type_of ctx e2 in
