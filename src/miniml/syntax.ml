@@ -32,6 +32,7 @@ and expr' =
   | Apply of expr * expr 		(* Application [e1 e2] *)
   | Exptn of exptn                  (* Sample to try an error *)
   | Raise of exptn          (* Raise an exception *)
+  | Try of expr * (exptn * expr) list (* Try-with block *)
 
 (* Toplevel commands *)
 type command =

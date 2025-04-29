@@ -19,3 +19,4 @@ let rec compile {Zoo.data=e'; _} =
     | Syntax.Apply (e1, e2) -> (compile e1) @ (compile e2) @ [ICall]
     | Syntax.Exptn e -> [IExptn e]
     | Syntax.Raise e -> [IRaise e]
+    | Syntax.Try (e,cases) -> (compile e) @ [IHandle (List.map (fun (e, ex) -> (e, compile ex)) cases)]

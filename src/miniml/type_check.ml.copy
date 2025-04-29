@@ -26,12 +26,12 @@ and type_of ctx {Zoo.data=e; loc} =
     | Int _ -> TInt
     | Bool _ -> TBool
     | Exptn _ -> TExptn
-    | Times (_, _) -> TInt
-    | By (_, _) -> TInt
-    | Plus (_, _) -> TInt
-    | Minus (_, _) -> TInt
-    | Equal (_, _) -> TBool
-    | Less (_, _) -> TBool
+    | Times (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TInt
+    | By (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2; TInt
+    | Plus (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TInt
+    | Minus (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TInt
+    | Equal (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TBool
+    | Less (e1, e2) -> check ctx TInt e1 ; check ctx TInt e2 ; TBool
     | Raise _ -> TExptn
     | Try (e, cases) -> let ty = type_of ctx e in 
                         let rec match_type cases = match cases with

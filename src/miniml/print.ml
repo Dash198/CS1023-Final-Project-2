@@ -18,5 +18,5 @@ let mvalue m ppf =
     | Machine.MExptn e-> (
       match e with
       | Syntax.DivisionByZero -> Zoo.print_parens ppf "Division By Zero"
-      | Syntax.GenericException e -> Zoo.print_parens ppf "%d" e
+      | Syntax.GenericException e -> Zoo.print_parens ppf "Generic Exception %d" e
     )

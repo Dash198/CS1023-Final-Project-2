@@ -6,12 +6,14 @@
 %token TBOOL
 %token TARROW
 %token TEXPTN
+%token TCASE
 %token <Syntax.name> VAR
 %token <int> INT
 %token TRUE FALSE
 %token PLUS
 %token MINUS
 %token TIMES
+%token PIPE
 %token BY
 %token EQUAL LESS
 %token IF THEN ELSE
@@ -86,8 +88,14 @@ plain_expr:
     { If (e1, e2, e3) }
   | FUN x = VAR LPAREN f = VAR COLON t1 = ty RPAREN COLON t2 = ty IS e = expr
     { Fun (x, f, t1, t2, e) }
-  |RAISE e = exptn
+  | RAISE e = exptn
     { Raise e }
+  | TRY e = expr WITH LBRACE cases = nonempty_list(handlers) RBRACE
+    { Try (e, cases) }
+
+handlers:
+  | PIPE e=exptn TARROW e1=expr
+    { (e, e1) }
 
 app_expr: mark_position(plain_app_expr) { $1 }
 plain_app_expr:
@@ -120,6 +128,8 @@ exptn:
     { GenericException e }
   | GENEXPTN MINUS e = INT
     { GenericException (-e) }
+  | LPAREN e = exptn RPAREN
+    { e }
 
 ty:
   | TBOOL

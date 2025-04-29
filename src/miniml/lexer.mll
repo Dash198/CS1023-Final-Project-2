@@ -34,6 +34,7 @@ rule token = parse
   | '{'             { LBRACE }
   | '}'             { RBRACE }
   | '+'             { PLUS }
+  | '|'             { PIPE }
   | '-'             { MINUS }
   | '*'             { TIMES }
   | '/'             { BY }

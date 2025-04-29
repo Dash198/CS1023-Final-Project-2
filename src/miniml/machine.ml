@@ -59,6 +59,7 @@ and instr =
   | IBranch of frame * frame        (** branch *)
   | ICall                           (** execute a closure *)
   | IPopEnv                         (** pop environment *)
+  | IHandle of (Syntax.exptn * frame) list
 
 (** A frame is a list (stack) of instructions *)
 and frame = instr list
@@ -82,7 +83,7 @@ let string_of_mvalue = function
   | MClosure _ -> "<fun>"
   | MExptn e-> match e with
     | Syntax.DivisionByZero -> "Division by zero"
-    | Syntax.GenericException e -> string_of_int e 
+    | Syntax.GenericException e -> "Generic Exception" ^ string_of_int e 
 
 (** [lookup x envs] scans through the list of environments [envs] and
     returns the first value of variable [x] found. *)
@@ -111,33 +112,34 @@ let pop_app = function
 (** Multiplication *)
 let mult = function
   | (MInt x) :: (MInt y) :: s -> MInt (y * x) :: s
-  | _ -> error "int and int expected in mult"
+  | _ -> [MExptn (Syntax.GenericException (-1))]
 
 (** Division **)
 let div = function
   | (MInt 0) :: (MInt _) :: s -> MExptn Syntax.DivisionByZero:: s
   | (MInt x) :: (MInt y) :: s ->  MInt (y/x) :: s
-  | _ -> error "int and int expected in div"
+  | _ -> [MExptn (Syntax.GenericException (-1))]
 
 (** Addition *)
 let add = function
   | (MInt x) :: (MInt y) :: s -> MInt (y + x) :: s
-  | _ -> error "int and int expected in add"
+  | _ -> [MExptn (Syntax.GenericException (-1))]
 
 (** Subtraction *)
 let sub = function
   | (MInt x) :: (MInt y) :: s -> MInt (y - x) :: s
-  | _ -> error "int and int expected in sub"
+  | _ -> [MExptn (Syntax.GenericException (-1))]
 
 (** Equality *)
 let equal = function
   | (MInt x) :: (MInt y) :: s -> MBool (y = x) :: s
-  | _ -> error "int and int expected in equal"
+  | _ -> [MExptn (Syntax.GenericException (-1))]
 
 (** Less than *)
 let less = function
   | (MInt x) :: (MInt y) :: s -> MBool (y < x) :: s
-  | _ -> error "int and int expected in less"
+  | _ -> [MExptn (Syntax.GenericException (-1))]
+
 
 (** [exec instr frms stck envs] executes instruction [instr] in the
     given state [(frms, stck, envs)], where [frms] is a stack of frames,
@@ -159,6 +161,7 @@ let exec instr frms stck envs =
     | IBool b -> (frms, (MBool b) :: stck, envs)
     | IExptn e -> (frms, (MExptn e) :: stck, envs)
     | IClosure (f, x, frm) ->
+      
 	(match envs with
 	     env :: _ ->
 	       let rec c = MClosure (x, frm, (f,c) :: env) in
@@ -175,6 +178,14 @@ let exec instr frms stck envs =
 	(match envs with
 	     [] -> error "no environment to pop"
 	   | _ :: envs' -> (frms, stck, envs'))
+    | IHandle cases ->
+      let (e', stck') = pop stck in
+        let rec match_cases cases = match cases with
+        | [] -> (frms, stck, envs)
+        | (e, exp)::body ->
+           (if (string_of_mvalue (MExptn e)=string_of_mvalue e') then (exp :: frms, stck', envs) else match_cases body)
+
+        in match_cases cases
 
 (** [run frm env] executes the frame [frm] in environment [env]. *)
 let run frm env =
