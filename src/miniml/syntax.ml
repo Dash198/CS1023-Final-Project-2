@@ -10,7 +10,7 @@ type ty =
   | TExptn            (* Exceptions *)
   | TArrow of ty * ty (* Functions *)
 
-  (* Exception types *)
+(* Exception types *)
 type exptn =
   | DivisionByZero 
   | GenericException of int
