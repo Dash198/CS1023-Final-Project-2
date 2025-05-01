@@ -133,6 +133,7 @@
 
     \newpage
 \section{Example Cases}
+    \subsection{Raising Exceptions}
     Let us see how and when exceptions are raised:
     \begin{itemize}
         \item Division by zero:\\\texttt{miniML> 1/0;;\\- : int = Division By Zero}
@@ -141,6 +142,7 @@
         \item Using \texttt{raise}:\\\texttt{miniML> raise DivisionByZero;;\\- : error = Division By Zero\\miniML> raise GenericException 42;;\\- : error = Generic Exception 42}
     \end{itemize}
 
+    \subsection{\texttt{try-with} Usage}
     Next, let us see use cases of the \texttt{try-with} block:
     \begin{itemize}
         \item Simple Exception Handling (\texttt{double} is the same function as defined above):\\\texttt{miniML> try \{21/6\} with \{|DivisionByZero -> 0\};;\\- : int = 3\\miniML> try \{21/0\} with \{|DivisionByZero -> 0\};;\\- : int = 0\\miniML> try \{2 + false\} with \{|GenericException -1 -> true\};;\\- : bool = true\\miniML> try \{2 + false\} with \{|GenericException -1 -> 4\};;\\- : int = 4\\miniML> try \{double true\} with \{|GenericException 1 -> 10\};;\\- : int = 10}
@@ -149,6 +151,7 @@
         \item Nested Blocks:\\\texttt{miniML> try \{4 + try\{4/0\} with \{|DivisionByZero -> false\}\} with \{|GenericException -1 -> 140\};;\\- : int = 140}
     \end{itemize}
 
+    \subsection{Limitations}
     However, there are multiple cases where this implementation fails or produces unexpected results:
     \begin{itemize}
         \item Non-exception value raised:\\\texttt{miniML> raise 5;;\\Syntax error at line 0, characters 6-7:\\syntax error}\\This is because \texttt{raise} is not type checked due to complications of its argument being an explicit \texttt{exptn} and not included in the \texttt{expr} group which is type-checked.
