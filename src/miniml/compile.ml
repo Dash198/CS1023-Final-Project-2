@@ -15,8 +15,10 @@ let rec compile {Zoo.data=e'; _} =
     | Syntax.Equal (e1, e2) -> (compile e1) @ (compile e2) @ [IEqual]
     | Syntax.Less (e1, e2) -> (compile e1) @ (compile e2) @ [ILess]
     | Syntax.If (e1, e2, e3) -> (compile e1) @ [IBranch (compile e2, compile e3)]
-    | Syntax.Fun (f, x, _, _, e) -> [IClosure (f, x, compile e @ [IPopEnv])]
+    (* Modified the definition of IClosure to include the type of the parameter as well for dynamic type checking.*)
+    | Syntax.Fun (f, x, ty, _, e) -> [IClosure (f, x, compile e @ [IPopEnv], ty)]
     | Syntax.Apply (e1, e2) -> (compile e1) @ (compile e2) @ [ICall]
-    | Syntax.Exptn e -> [IExptn e]
-    | Syntax.Raise e -> [IRaise e]
+    | Syntax.Exptn e -> [IExptn e]    (* Exception compilation. *)
+    | Syntax.Raise e -> [IRaise e]    (* Raise compilation added. *)
+    (* While compiling try, also compile the expressions in each case using List.map and a helper anonymous function. *)
     | Syntax.Try (e,cases) -> (compile e) @ [IHandle (List.map (fun (e, ex) -> (e, compile ex)) cases)]

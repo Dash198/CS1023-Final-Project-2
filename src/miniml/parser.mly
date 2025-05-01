@@ -6,7 +6,6 @@
 %token TBOOL
 %token TARROW
 %token TEXPTN
-%token TCASE
 %token <Syntax.name> VAR
 %token <int> INT
 %token TRUE FALSE

@@ -7,9 +7,10 @@ type name = string
 type ty =
   | TInt              (* Integers *)
   | TBool             (* Booleans *)
-  | TExptn
+  | TExptn            (* Exceptions *)
   | TArrow of ty * ty (* Functions *)
 
+  (* Exception types *)
 type exptn =
   | DivisionByZero 
   | GenericException of int
@@ -27,7 +28,6 @@ and expr' =
   | Equal of expr * expr 		(* Integer comparison [e1 = e2] *)
   | Less of expr * expr  		(* Integer comparison [e1 < e2] *)
   | If of expr * expr * expr 		(* Conditional [if e1 then e2 else e3] *)
-  (**| Try of expr * expr * expr   (* Try-with block [try e1 with error then e2] *)*)
   | Fun of name * name * ty * ty * expr (* Function [fun f(x:s):t is e] *)
   | Apply of expr * expr 		(* Application [e1 e2] *)
   | Exptn of exptn                  (* Sample to try an error *)
