@@ -1,19 +1,17 @@
 (** Type checking. *)
 
 open Syntax
+exception Type_Error
 
 let typing_error ~loc = Zoo.error ~kind:"Type error" ~loc
 
 (** [check ctx ty e] verifies that expression [e] has type [ty] in
     context [ctx]. If it does, it returns unit, otherwise it raises the
     [Type_error] exception. *)
-let rec check ctx ty ({Zoo.loc;_} as e) =
+let rec check ctx ty (e) =
   let ty' = type_of ctx e in
     if ty' <> ty then
-      typing_error ~loc
-        "This expression has type %t but is used as if it has type %t"
-        (Print.ty ty')
-        (Print.ty ty)
+      raise Type_Error
 
 (** [type_of ctx e] computes the type of expression [e] in context
     [ctx]. If [e] does not have a type it raises the [Type_error]
@@ -26,17 +24,19 @@ and type_of ctx {Zoo.data=e; loc} =
     | Int _ -> TInt
     | Bool _ -> TBool
     | Exptn _ -> TExptn
-    | Times (_, _) -> TInt
-    | By (_, _) -> TInt
-    | Plus (_, _) -> TInt
-    | Minus (_, _) -> TInt
-    | Equal (_, _) -> TBool
-    | Less (_, _) -> TBool
+    | Times (a, b) -> (try check ctx TInt a; check ctx TInt b; TInt with Type_Error -> TExptn)
+    | By (a, b) -> (try check ctx TInt a; check ctx TInt b; TInt; with Type_Error -> TExptn)
+    | Plus (a, b) -> (try check ctx TInt a; check ctx TInt b; TInt with Type_Error -> TExptn)
+    | Minus (a, b) -> (try check ctx TInt a; check ctx TInt b; TInt with Type_Error -> TExptn)
+    | Equal (a, b) -> (try check ctx TInt a; check ctx TInt b; TBool with Type_Error -> TExptn)
+    | Less (a, b) -> (try check ctx TInt a; check ctx TInt b; TBool with Type_Error -> TExptn)
     | Raise _ -> TExptn
-    | Try (e, cases) -> let ty = type_of ctx e in 
-                        let rec match_type cases = match cases with
-                        | (_, exp)::body -> check ctx ty exp; match_type body
-                        | [] -> (); in match_type cases; ty
+    | Try (e, cases) ->
+      let ty = type_of ctx e in
+      let rec match_cases cases exp_case = match cases with
+      | (_, exp) :: body -> let t' = type_of ctx exp in match_cases body t'
+      | [] -> exp_case in
+      let t' = match_cases cases ty in if ty = TExptn then t' else ty
     | If (e1, e2, e3) ->
       check ctx TBool e1 ;
       let ty = type_of ctx e2 in
@@ -45,9 +45,13 @@ and type_of ctx {Zoo.data=e; loc} =
       check ((f, TArrow(ty1,ty2)) :: (x, ty1) :: ctx) ty2 e ;
       TArrow (ty1, ty2)
     | Apply (e1, e2) ->
-      begin match type_of ctx e1 with
-	  TArrow (ty1, ty2) -> check ctx ty1 e2 ; ty2
-	| ty ->
-	  typing_error ~loc
-            "this expression is used as a function but its type is %t" (Print.ty ty)
+      begin
+        match type_of ctx e1 with
+	          | TArrow (ty1, ty2) -> 
+                (try check ctx ty1 e2; ty2  
+                with 
+                  Type_Error -> TExptn
+                )
+            | _ -> typing_error ~loc
+                  "this expression is used as a function but its type is not a function"
       end
