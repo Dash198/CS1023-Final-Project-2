@@ -89,10 +89,10 @@ plain_expr:
     { Fun (x, f, t1, t2, e) }
   | RAISE e = exptn
     { Raise e }
-  | TRY e = expr WITH LBRACE cases = nonempty_list(handlers) RBRACE
+  | TRY e = expr WITH LBRACE cases = nonempty_list(case) RBRACE
     { Try (e, cases) }
 
-handlers:
+case:
   | PIPE e=exptn TARROW e1=expr
     { (e, e1) }
 

@@ -1,0 +1,182 @@
+\documentclass{article}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Exception Handling in MiniML}
+\lhead{Devansh Tripathi}
+\rfoot{\thepage}
+
+\begin{document}
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+
+    {\huge \bfseries Exception Handling in MiniML \par}
+    \vspace{0.5cm}
+
+    {\Large Final Project Report for CS1023\\Software Development Fundamentals \par}
+    \vspace{1.5cm}
+
+    {\Large \textbf{Submitted by:} \par} 
+    \vspace{0.3cm}
+    {\large Devansh Tripathi \par} 
+    {\large CS24BTECH11022 \par} 
+    \vspace{2cm}
+
+    {\large \textbf{Date:} \today \par} 
+
+    \vfill
+    {\large Indian Institute of Technology Hyderabad \par}
+\end{titlepage}
+
+\newpage
+\section{Introduction}
+    \subsection{MiniML}
+        MiniML is an implementation of an eager statically typed functional language
+        with a compiler and abstract machine.\\
+        It has the following constructs:
+        \begin{itemize}
+        \item Integers with arithmetic operations \texttt{+, -} and \texttt{*}.
+        \item Since there is no exceptions defined in the language by default, there is no divison operation.
+        \item Booleans with conditional control flows and integer comparisons (\texttt{=,<}).
+        \item Recursive functions and function application.
+        \item Toplevel definitions.
+        \end{itemize}
+    
+    \subsection{Aim of the Project}
+        The main aim of this project is to extend the functionality of the MiniML language,
+        and add exceptions and exception handling.
+    
+\section{Features}
+    The language now supports integer division.\\
+    Additionally, two new constructs have been added to the language:
+    \begin{itemize}
+        \item \texttt{raise}: Used to raise exceptions.
+        \item \texttt{try-with}: Used to handle exceptions.
+    \end{itemize}
+
+    The exceptions that have been taken into consideration are:
+    \begin{itemize}
+        \item \texttt{DivisionByZero}: Raised by the machine when the divisor in a division operation is zero.
+        \item \texttt{GenericException of int}: A Generic Exception type that can be used to define custom exceptions. Takes an integer code to represent the exception type.
+    \end{itemize}
+
+    Along with this, type checking has also been modified so that the incorrect datatypes are handled at runtime rather than before execution. To implement this, the definition of closures has also been modified.
+
+\newpage
+\section{Type System}
+    The type checking system has been changed to accommodate incorrect datatype handling in runtime rather than before execution.
+    The changes and additions made are as follows:
+
+    \begin{itemize}
+        \item Added a new \texttt{exptn} type in syntax for exceptions.\\\texttt{type exptn =\\| DivisionByZero \\| GenericException of int}
+        \item Consequentially, syntax type \texttt{TExptn} and machine value type \texttt{MExptn} have also been added.
+        \item Modified \texttt{type\_check.ml} to enable bypass the incorrect data type error during runtime. \\Example: \texttt{    | Plus (a, b) -> (try check ctx TInt a; check ctx TInt b; TInt with Type\_Error -> TExptn)}\\Here, the types of \texttt{a} and \texttt{b} are checked, and if any of them are not \texttt{TInt}, then instead of stopping there, we pass \texttt{TExptn} as the return type instead, and the incorrect datatypes are handled in \texttt{machine.ml}.
+        \item Incorrect datatype handling example in \texttt{machine.ml}:\\\texttt{let add = function\\| (MInt x) :: (MInt y) :: s -> MInt (y + x) :: s\\| \_ -> [MExptn (Syntax.GenericException (-1))]}\\Here, the \texttt{add} function will only return the sum of \texttt{x} and \texttt{y} if both of them are of the type \texttt{MInt}. Otherwise it throws the error \texttt{GenericException -1}.
+        \item To do this for user-defined functions, the definition of \texttt{MClosure} has been changed.\\\texttt{MClosure of name * frame * environ * Syntax.ty}\\\texttt{MClosure} now also stores the datatype required for the parameter, and this is checked at runtime. Here, the exception thrown is \texttt{GenericException 1}.
+        \item For the \texttt{try-with} block, the type checking is done as follows:
+            \begin{itemize}
+                \item First, the type of the test expression is checked and returned if it is not of the type \texttt{TExptn}.
+                \item If it is of type \texttt{TExptn}, then the type of the last expression in the list of expressions in the \texttt{with} block is given.
+            \end{itemize}
+        \item Note the for division by zero cases, the return type is still \texttt{int}, as the return type is always \texttt{TInt} (I was unable to access the value of the divisor in type checking so I was forced to keep the return type as \texttt{int}).
+    \end{itemize}
+
+\newpage
+\section{Exception Handling}
+    \subsection{Exceptions}
+        The exceptions that can be thrown by the machine are:
+        \begin{itemize}
+            \item \texttt{DivisionByZero}: Thrown when the divisor of a division is zero, eg. \texttt{5/0}.
+            \item \texttt{GenericException -1}: Thrown when the operands of an arithmetic or logical operation are incorrect, eg. \texttt{5+true}, \texttt{false<4}.
+            \item \texttt{GenericException 1}: Thrown when the function parameter has incorrect data type, eg. \texttt{fact true} where \texttt{fact n} returns the factorial of a positive integer \texttt{n}.
+        \end{itemize}
+
+        These exceptions are detected in the following ways:
+        \begin{itemize}
+            \item \texttt{DivisionByZero}: The topmost value in the value stack, i.e., the divisor is checked if it is zero.\\\texttt{let div = function\\| (MInt 0) :: (MInt \_) :: s -> MExptn Syntax.DivisionByZero:: s\\| (MInt x) :: (MInt y) :: s ->  MInt (y/x) :: s\\| \_ -> [MExptn (Syntax.GenericException (-1))]}
+            \item \texttt{GenericException -1}: The datatypes of the machine values of the operands are checked and this exception is thrown when they are not the expected types (demonstrated above).
+            \item \texttt{GenericException 1}: The datatype of the function parameter is checked before executing \texttt{ICall} further:
+                \begin{itemize}
+                    \item The definition of \texttt{MClosure} has been modified to also include the type of the parameter expected.
+                    \item We use a helper function \texttt{get\_type} which returns the corresponding machine value type of its argument.
+                    \item If it does not match. then the exception is thrown. else the execution continues.
+                \end{itemize} 
+        \end{itemize}
+
+        Exceptions can also be raised manually by the user by using the \texttt{raise} command.\\\texttt{raise DivisionByZero;;} will throw a \texttt{DivisionByZero} exception.
+    
+    \newpage
+    \subsection{Exception Handling}
+        To handle the exceptions thrown by the machine, the \texttt{try-with} construct has been added.
+        The general syntax of this construct is:\\\\
+        \texttt{try\{test-expression\} with \{| error1 -> exp1 | error2 -> exp2 ....\}}\\
+
+        The multiple error cases have been implemented by splitting the expression inside the \texttt{with} block as a list of \texttt{cases} in \texttt{parser.mly}:\\
+        \texttt{| TRY e = expr WITH LBRACE cases = nonempty\_list(case) RBRACE\\\{ Try (e, cases) \}}\\
+
+        where \texttt{case} is parsed as:\\
+        \texttt{case:\\| PIPE e=exptn TARROW e1=expr\\{ (e, e1) }}
+
+        \texttt{PIPE}, \texttt{LBRACE}, \texttt{RBRACE}, \texttt{TRY} and \texttt{WITH} are user-defined tokens for \texttt{|, \{, \}, \texttt{try} and \texttt{with}} respectively.\\
+
+        Next, the test expression is executed, after which it is type-checked. If its type is \texttt{TExptn}, then we recursively go through the types of the expressions in the \texttt{with} block:\\\texttt{| Try (e, cases) ->let ty = type\_of ctx e in\\(* Recursively go through the list and return the type of the last expression. *)\\let rec match\_cases cases exp\_case = match cases with\\| (\_, exp) :: body -> let t' = type\_of ctx exp in match\_cases body t'\\| [] -> exp\_case in\\(* Assign the return type to t' if the test expression is an exception. *)\\let t' = match\_cases cases ty in if ty = TExptn then t' else ty}\\
+
+        It can be noted though, that this approach has two main drawbacks:
+        \begin{itemize}
+            \item Since division by zero does not have a \texttt{TExptn} type after type checking, it will have a type \texttt{TInt} and so any \texttt{with} expressions having \texttt{DivisionByZero} must have their expression as type \texttt{int} if the test expression has that error, otherwise an error will be raised.
+            \item If different cases have different types, then the return type would be that of the last case, which can lead to confusion in the output.
+        \end{itemize}
+
+        Finally, in \texttt{machine.ml}, the topmost value in the stack is obtained, and we recursively iterate through our case list to match it with the different error cases. If we find a match, we execute the expression under it, or else we leave the values as they are, which means that either there was no error produced or the produced error has not been covered in the \texttt{with} block.
+
+    \newpage
+\section{Example Cases}
+    Let us see how and when exceptions are raised:
+    \begin{itemize}
+        \item Division by zero:\\\texttt{miniML> 1/0;;\\- : int = Division By Zero}
+        \item Wrong operands:\\\texttt{miniML> 1+true;;\\- : error = Generic Exception -1}
+        \item Wrong function parameter:\\\texttt{miniML> let double = fun f (n:int) : int is 2*n;;\\double : int -> int = <fun>\\miniML> double 5;;\\- : int = 10\\miniML> double true;;\\- : error = Generic Exception 1}
+        \item Using \texttt{raise}:\\\texttt{miniML> raise DivisionByZero;;\\- : error = Division By Zero\\miniML> raise GenericException 42;;\\- : error = Generic Exception 42}
+    \end{itemize}
+
+    Next, let us see use cases of the \texttt{try-with} block:
+    \begin{itemize}
+        \item Simple Exception Handling (\texttt{double} is the same function as defined above):\\\texttt{miniML> try \{21/6\} with \{|DivisionByZero -> 0\};;\\- : int = 3\\miniML> try \{21/0\} with \{|DivisionByZero -> 0\};;\\- : int = 0\\miniML> try \{2 + false\} with \{|GenericException -1 -> true\};;\\- : bool = true\\miniML> try \{2 + false\} with \{|GenericException -1 -> 4\};;\\- : int = 4\\miniML> try \{double true\} with \{|GenericException 1 -> 10\};;\\- : int = 10}
+        \item Multiple Cases (\texttt{double} is the same function as defined above):\\\texttt{miniML> try \{21/0\} with \{|DivisionByZero -> 10 | GenericException -1 -> 20 | GenericException 1 -> 30\};;\\- : int = 10\\miniML> try \{10 + false\} with \{|DivisionByZero -> 10 | GenericException -1 -> 20 | GenericException 1 -> 30\};;\\- : int = 20\\miniML> try \{double true\} with \{|DivisionByZero -> 10 | GenericException -1 -> 20 | GenericException 1 -> 30\};;\\- : int = 30}
+        \item Unhandled Exceptions: \\\texttt{miniML> try \{3/0\} with \{|GenericException 1 -> 9\};;\\- : int = Division By Zero\\miniML> try \{4/false\} with \{|DivisionByZero -> 0 |GenericException 1 -> 10\};;\\- : int = Generic Exception -1}
+        \item Nested Blocks:\\\texttt{miniML> try \{4 + try\{4/0\} with \{|DivisionByZero -> false\}\} with \{|GenericException -1 -> 140\};;\\- : int = 140}
+    \end{itemize}
+
+    However, there are multiple cases where this implementation fails or produces unexpected results:
+    \begin{itemize}
+        \item Non-exception value raised:\\\texttt{miniML> raise 5;;\\Syntax error at line 0, characters 6-7:\\syntax error}\\This is because \texttt{raise} is not type checked due to complications of its argument being an explicit \texttt{exptn} and not included in the \texttt{expr} group which is type-checked.
+        \item Multiple Same Exception Cases:\\\texttt{miniML> try \{2/0\} with \{|DivisionByZero -> 0 |DivisionByZero -> 5\};;\\- : int = 0}\\The first expression is always executed.
+        \item Different Data Types of Cases:\\\texttt{miniML> try \{3+true\} with \{|GenericException -1 -> 5 |DivisionByZero -> false\};;\\- : bool = 5}\\Since the return data type in the type checker is determined by the last expression in the list, the datatype of the result can be printed incorrectly if the datatypes of the cases are different.
+        \item Fixed Return type of Division by Zero cases:\\\texttt{miniML> try \{5/0\} with \{|DivisionByZero -> false\};;\\- : int = false}\\The divisor's value cannot be accessed in the type checking process so we need to fix its return type as \texttt{int} and treat it as general division, which may print the datatype of the result incorrectly.
+        \item Handling Raised Exceptions: \\\texttt{miniML> try \{raise DivisionByZero\} with \{|DivisionByZero -> 0\};;\\- : int = Division By Zero\\miniML> try \{raise GenericException 1\} with \{|GenericException 1 -> true\};;\\- : bool = Generic Exception 1}\\The exceptions are compared by their string values, which is quite unreliable in these cases. However, when I tried to implement direct matching, it lead to other errors, so I had to keep this one.
+    \end{itemize}
+
+\section{Challenges}
+    The main challenges encountered in this project were:
+    \begin{itemize}
+        \item Understanding how the parsing of expressions works.
+        \item Adding a totally new data type \texttt{exptn}.
+        \item Adding new constructs.
+        \item Bypassing the type-checking restrictions to implement custom exceptions.
+    \end{itemize}
+
+\section{How to Use}
+    \begin{itemize}
+        \item Make sure \textbf{OCaml} has been installed and the \textbf{OCaml Development Environment} has been set up.
+        \item Activate the \textbf{opam switch}
+        \item Clean the previous build with \\\texttt{dune clean}
+        \item Build the executable again with \\\texttt{dune build src/miniml}
+        \item You can now run \texttt{miniml.exe} to use the top level and see how exceptions and ther handling behave.
+    \end{itemize}
+
+\section{Conclusion}
+This project successfully extends MiniML with exception handling capabilities through the addition of new constructs and runtime type checking. While the current implementation has certain limitations, it demonstrates how core programming language features can be enhanced within a functional language compiler. Future work could include improving pattern matching on exceptions and enhancing type inference in try-with blocks.
+
+\end{document}

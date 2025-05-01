@@ -1,98 +1,252 @@
-# CS1023-Final-Project
 
-Perfect — that changes everything again, **in a good way** 😄
 
-If you’re comfortable with **both Java and OCaml**, here’s a breakdown of what I’d recommend and how you can realistically tackle **both projects** for bonus points **without losing your mind during exams**.
+# Exception Handling in MiniML
 
----
+## Introduction
 
-### 🎯 Goal: Finish both projects in 15–20 days
-**With a priority on Project 2 (MiniML) for the bonus boost + originality.**
+### MiniML
 
----
+MiniML is an implementation of an eager statically typed functional language with a compiler and abstract machine.
 
-## 📌 Recommended Strategy
+It has the following constructs:
 
-### ✅ **Step 1: Finish Project 1 (Java Arithmetic Library) in 5–6 days**
+- Integers with arithmetic operations `+`, `-`, and `*`.
+- Since there is no exceptions defined in the language by default, there is no division operation.
+- Booleans with conditional control flows and integer comparisons (`=`, `<`).
+- Recursive functions and function application.
+- Toplevel definitions.
 
-This one is:
-- Conceptually easier
-- Mostly implementation + testing + minor documentation
-- No new tools to learn
-- You can chip away at it when you're brain-dead after studying
+### Aim of the Project
 
-✔️ **Aim**:
-- Finish the logic and basic tests in 3–4 days
-- Spend 1–2 days polishing the CLI + report + documentation
-- Tag your Git appropriately at stages (this is a requirement!)
+The main aim of this project is to extend the functionality of the MiniML language, and add exceptions and exception handling.
 
 ---
 
-### ✅ **Step 2: Focus Majority of Time on Project 2 (MiniML) — 10–14 days**
+## Features
 
-This is:
-- Heavier conceptually
-- More rewarding
-- More unique → better bonus points, better to show off
+The language now supports integer division.
 
-✔️ **Why it’s smart to leave more time here**:
-- You’ll need to modify parsing (Menhir), the AST, the machine, and the compiler
-- Testcases for exception handling can get tricky
-- You'll need to work with the OCaml tooling (dune, build scripts)
-- The LaTeX report takes time if you want it polished
+Additionally, two new constructs have been added to the language:
 
----
+- `raise`: Used to raise exceptions.
+- `try-with`: Used to handle exceptions.
 
-## 🗓️ Suggested 2-Project Schedule
+The exceptions considered are:
 
-| Day Range  | Task                                      | Notes |
-|------------|-------------------------------------------|-------|
-| Day 1–2    | Project 1: Plan classes, start `BigInteger` ops | Don’t overdesign — get core logic working |
-| Day 3–4    | Project 1: Finish arithmetic, handle edge cases | Add CLI + basic tests |
-| Day 5      | Project 1: Report writing + Git polish     | Submit / move to MiniML |
-| Day 6–7    | Project 2: Fork + understand MiniML project | Run sample code, understand the evaluation pipeline |
-| Day 8–9    | Project 2: Modify `parser.mly`, `lexer.mll`, `syntax.ml` | Add `try ... with ...` and new exception types |
-| Day 10–11  | Project 2: Add `IRaise` / `IHandle` to `machine.ml` | Start seeing output from simple programs |
-| Day 12     | Project 2: Add typing rules + compile logic (`compile.ml`) | Handle typechecker updates |
-| Day 13–14  | Project 2: Write testcases (good + failing), finalize Python CLI | Integrate with `miniml.ml`, test build system |
-| Day 15+    | Project 2: Polish report (LaTeX), add commit logs, snapshot test runs | Final wrap-up + submission |
+- `DivisionByZero`: Raised by the machine when the divisor in a division operation is zero.
+- `GenericException of int`: A Generic Exception type that can be used to define custom exceptions. Takes an integer code to represent the exception type.
+
+Also, type checking has been modified so that incorrect datatypes are handled at runtime rather than before execution. To implement this, the definition of closures has also been modified.
 
 ---
 
-## ⏱️ Exam Days?
+## Type System
 
-You can shift low-effort tasks like:
-- Writing testcases
-- Typing out the report
-- Tagging commits
-- Running pre-written testcases
-...to your low-energy/exam-prep days.
+The type checking system has been changed to accommodate runtime incorrect datatype handling. The key changes:
 
-OCaml debugging and parser/machine changes should be scheduled when you're fresh.
+- Added a new `exptn` type in syntax for exceptions:
+  ```ocaml
+  type exptn =
+    | DivisionByZero
+    | GenericException of int
+  ```
+- Consequently, syntax type `TExptn` and machine value type `MExptn` have also been added.
+- In `type_check.ml`, bypassing the incorrect datatype error is now possible:
+  ```ocaml
+  | Plus (a, b) ->
+      (try check ctx TInt a; check ctx TInt b; TInt with Type_Error -> TExptn)
+  ```
+- Example in `machine.ml`:
+  ```ocaml
+  let add = function
+    | (MInt x) :: (MInt y) :: s -> MInt (y + x) :: s
+    | _ -> [MExptn (Syntax.GenericException (-1))]
+  ```
+- `MClosure` has been modified to:
+  ```ocaml
+  MClosure of name * frame * environ * Syntax.ty
+  ```
+  The parameter's expected type is checked at runtime.
+- For `try-with`, type checking works like:
+  - If test expression is not of type `TExptn`, return its type.
+  - Else, return the type of the last case expression in `with`.
+
+> Note: Division by zero still returns type `TInt` as the divisor value isn't available during type checking.
 
 ---
 
-## 🎁 Extra Bonus Tips
+## Exception Handling
 
-- **For Project 1:**
-  - Make sure to include division and modulo properly.
-  - Include testcases that overflow a normal `int`.
+### Exceptions
 
-- **For Project 2:**
-  - Try catching division-by-zero in a test like:
-    ```ocaml
-    try (10 / 0) with x -> "caught"
-    ```
-  - Test unhandled exceptions too.
-  - Add 1–2 testcases where `try ... with` nests inside expressions.
+Exceptions that can be thrown by the machine:
+
+- `DivisionByZero`: when dividing by zero (e.g. `5 / 0`).
+- `GenericException -1`: for incorrect operand types (e.g. `5 + true`, `false < 4`).
+- `GenericException 1`: for incorrect function parameter types (e.g. `fact true`).
+
+Detection mechanisms:
+
+- **DivisionByZero**:
+  ```ocaml
+  let div = function
+    | (MInt 0) :: (MInt _) :: s -> MExptn Syntax.DivisionByZero :: s
+    | (MInt x) :: (MInt y) :: s -> MInt (y / x) :: s
+    | _ -> [MExptn (Syntax.GenericException (-1))]
+  ```
+- **GenericException -1**: Thrown for incorrect operand types.
+- **GenericException 1**: 
+  - `MClosure` modified to store expected param type.
+  - Runtime type is matched using helper `get_type`.
+  
+Manual raising:
+```ocaml
+raise DivisionByZero;;
+```
+
+### Exception Handling
+
+Using `try-with` syntax:
+```ocaml
+try { test-expression } with { | error1 -> exp1 | error2 -> exp2 ... }
+```
+
+Parsed in `parser.mly` as:
+```ocaml
+TRY e = expr WITH LBRACE cases = nonempty_list(case) RBRACE
+  { Try (e, cases) }
+
+case:
+  | PIPE e=exptn TARROW e1=expr { (e, e1) }
+```
+
+Type checking logic:
+```ocaml
+| Try (e, cases) ->
+    let ty = type_of ctx e in
+    let rec match_cases cases exp_case = match cases with
+      | (_, exp) :: body -> let t' = type_of ctx exp in match_cases body t'
+      | [] -> exp_case
+    in
+    let t' = match_cases cases ty in
+    if ty = TExptn then t' else ty
+```
+
+**Limitations**:
+- DivisionByZero is not `TExptn` so its `with` block must return `int`.
+- If `with` block has mixed types, result type is that of last case.
+
+Machine-level implementation:
+- After evaluation, if result is an exception, match against `with` cases.
+- If matched, run the associated expression.
 
 ---
 
-## ✅ Verdict
+## Example Cases
 
-Since you already know OCaml + Java, and you’re motivated for bonus points:
+### Exceptions Raised
 
-**Yes, do both. But plan tightly. Prioritize Project 2. Use Project 1 as your warm-up.**  
-You’ll walk out of this with two solid projects, and probably impress your instructor too.
+- **Division by zero**:
+  ```ocaml
+  miniML> 1/0;;
+  - : int = Division By Zero
+  ```
+- **Wrong operands**:
+  ```ocaml
+  miniML> 1+true;;
+  - : error = Generic Exception -1
+  ```
+- **Wrong function parameter**:
+  ```ocaml
+  miniML> let double = fun f (n:int) : int is 2*n;;
+  double : int -> int = <fun>
+  miniML> double true;;
+  - : error = Generic Exception 1
+  ```
+- **Manual raise**:
+  ```ocaml
+  miniML> raise GenericException 42;;
+  - : error = Generic Exception 42
+  ```
 
-Want help planning the MiniML exception implementation files (like parser rules, AST extension, or how to do `IRaise`/`IHandle`)? I can break it down file by file if you’d like.
+### `try-with` Usage
+
+- **Simple handling**:
+  ```ocaml
+  miniML> try {21/0} with {|DivisionByZero -> 0};;
+  - : int = 0
+  ```
+- **Multiple cases**:
+  ```ocaml
+  miniML> try {10 + false} with {|DivisionByZero -> 10 | GenericException -1 -> 20};;
+  - : int = 20
+  ```
+- **Unhandled exception**:
+  ```ocaml
+  miniML> try {3/0} with {|GenericException 1 -> 9};;
+  - : int = Division By Zero
+  ```
+- **Nested blocks**:
+  ```ocaml
+  miniML> try {4 + try{4/0} with {|DivisionByZero -> false}} with {|GenericException -1 -> 140};;
+  - : int = 140
+  ```
+
+---
+
+## Limitations & Issues
+
+- **Invalid raise argument**:
+  ```ocaml
+  miniML> raise 5;;
+  Syntax error...
+  ```
+- **Duplicate exception cases**:
+  ```ocaml
+  miniML> try {2/0} with {|DivisionByZero -> 0 | DivisionByZero -> 5};;
+  - : int = 0
+  ```
+- **Mixed case types**:
+  ```ocaml
+  miniML> try {3+true} with {|GenericException -1 -> 5 | DivisionByZero -> false};;
+  - : bool = 5
+  ```
+- **Fixed return type**:
+  ```ocaml
+  miniML> try {5/0} with {|DivisionByZero -> false};;
+  - : int = false
+  ```
+- **Manual raise unhandled**:
+  ```ocaml
+  miniML> try {raise DivisionByZero} with {|DivisionByZero -> 0};;
+  - : int = Division By Zero
+  ```
+
+---
+
+## Challenges
+
+- Understanding parser structure.
+- Defining a new type `exptn`.
+- Introducing new syntax constructs.
+- Bypassing type-checking to support runtime errors.
+
+---
+
+## How to Use
+
+1. Install **OCaml** and set up the **OCaml Development Environment**.
+2. Activate the **opam switch**.
+3. Clean previous build:
+   ```bash
+   dune clean
+   ```
+4. Rebuild the project:
+   ```bash
+   dune build src/miniml
+   ```
+5. Run the REPL or executable as required.
+
+---
+
+Let me know if you want this formatted into a downloadable `.md` file!
